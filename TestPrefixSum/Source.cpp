@@ -52,8 +52,15 @@ struct Cluster
 
 	bool AreClusterOverlaps(const Cluster& cluster) const
 	{
-		bool x_overlap = i <= cluster.k && k >= cluster.i;
-		bool y_overlap = j <= cluster.l && l >= cluster.j;
+		const bool x_overlap = i <= cluster.k && k >= cluster.i;
+		const bool y_overlap = j <= cluster.l && l >= cluster.j;
+		return x_overlap && y_overlap;
+	}
+
+	bool AreFullyOverlapped(const Cluster& cluster) const
+	{
+		const bool x_overlap = i <= cluster.i && k >= cluster.k;
+		const bool y_overlap = j <= cluster.j && l >= cluster.l;
 		return x_overlap && y_overlap;
 	}
 
@@ -244,9 +251,9 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 				if (max_j < rect.m_M)
 					continue;
 
-				
+
 				bool IsOkey = true;
-				
+
 				for (size_t k = i; k < i + rect.m_N && IsOkey; k++)
 				{
 					for (size_t l = j; l < j + rect.m_M && IsOkey; l++)
@@ -265,23 +272,26 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 				}
 			}
 		}
+	}
 
-		if (clusters.contains(element.first))
+	for (auto it = clusters.begin(); it != clusters.end(); ++it)
+	{
+		if (clusters.contains(it->first))
 		{
-			const auto cluster = clusters[element.first];
+			const auto cluster = clusters[it->first];
 			if (cluster.size() == 1)
 			{
 				const auto& clusterUnique = cluster.front();
-				for (size_t i = clusterUnique.i; i < clusterUnique.k; i++)
-					for (size_t j = clusterUnique.j; j < clusterUnique.l; j++)
+				for (size_t i = clusterUnique.i; i <= clusterUnique.k; i++)
+					for (size_t j = clusterUnique.j; j <= clusterUnique.l; j++)
 						copy[i][j] = 0;
-				//std::cout << clusterUnique << std::endl;
+
 				returnValue += clusterUnique.value;
 				found.push_back(clusterUnique);
 			}
-			else
+			else if (!cluster.empty())
 			{
-				std::unordered_set<Cluster, Hasher> overlaping_clusters;
+				std::unordered_set<Cluster, Hasher> overlapping_clusters;
 				const auto& cluster_vec = cluster;
 				for (size_t i = 0; i < cluster_vec.size(); i++)
 				{
@@ -289,60 +299,59 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 					{
 						if (cluster_vec.at(i).AreClusterOverlaps(cluster_vec.at(j)))
 						{
-							overlaping_clusters.insert(cluster_vec.at(i));
-							overlaping_clusters.insert(cluster_vec.at(j));
+							overlapping_clusters.insert(cluster_vec.at(i));
+							overlapping_clusters.insert(cluster_vec.at(j));
 						}
 					}
 				}
 
 				for (size_t i = 0; i < cluster_vec.size(); i++)
 				{
-					if (overlaping_clusters.count(cluster_vec[i]) == 0)
+					if (overlapping_clusters.contains(cluster_vec[i]))
 					{
 						const auto& clusterUnique = cluster_vec[i];
 						for (size_t i = clusterUnique.i; i < clusterUnique.k; i++)
 							for (size_t j = clusterUnique.j; j < clusterUnique.l; j++)
 								copy[i][j] = 0;
-						//std::cout << clusterUnique << std::endl;
 						returnValue += clusterUnique.value;
 					}
 				}
 
-				if (!overlaping_clusters.empty())
+				if (!overlapping_clusters.empty())
 				{
-					std::vector<Cluster> rectangles;
-					for (const auto& rectangle : overlaping_clusters)
-						rectangles.push_back(rectangle);
+					std::vector<Cluster> _rectangles;
+					for (const auto& rectangle : overlapping_clusters)
+						_rectangles.push_back(rectangle);
 
-					size_t max_lenght = 0;
+					size_t max_length = 0;
 					std::vector<std::vector<Cluster>> nonOverlappingCombinations;
 					std::vector<Cluster> currentCombination;
 
-					generateNonOverlappingCombinations(nonOverlappingCombinations, rectangles, currentCombination, 0, max_lenght);
+					generateNonOverlappingCombinations(nonOverlappingCombinations, _rectangles, currentCombination, 0, max_length);
 
 					int max_value_found = INT_MIN;
 					int index = -1;
 
 					for (size_t rectangle = 0; rectangle < nonOverlappingCombinations.size(); rectangle++)
 					{
-						if (nonOverlappingCombinations[rectangle].size() != max_lenght)
+						if (nonOverlappingCombinations[rectangle].size() != max_length)
 							continue;
 
-						MATRIX newCopy = MATRIX(copy);
-						for (const auto& clusterToRemvoe : nonOverlappingCombinations[rectangle])
+						auto newCopy = MATRIX(copy);
+						for (const auto& clusterToRemove : nonOverlappingCombinations[rectangle])
 						{
-							for (size_t ii = clusterToRemvoe.i; ii <= clusterToRemvoe.k; ii++)
-								for (size_t jj = clusterToRemvoe.j; jj <= clusterToRemvoe.l; jj++)
+							for (size_t ii = clusterToRemove.i; ii <= clusterToRemove.k; ii++)
+								for (size_t jj = clusterToRemove.j; jj <= clusterToRemove.l; jj++)
 									newCopy[ii][jj] = 0;
 
 						}
 						std::vector<Cluster> clustersToRemove;
 						size_t result = GetBiggestRectangles(newCopy, clustersToRemove);
 							
-						if (int(result) > max_value_found && result > 0)
+						if (const int castedValue = static_cast<int>(result); castedValue > max_value_found && result > 0)
 						{
-							max_value_found = result;
-							index = rectangle;
+							max_value_found = castedValue;
+							index = static_cast<int>(rectangle);
 						}
 
 					}
@@ -354,14 +363,14 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 					}
 					else
 					{
-						for (const auto& clusterToRemvoe : nonOverlappingCombinations[index])
+						for (const auto& clusterToRemove : nonOverlappingCombinations[index])
 						{
-							for (size_t ii = clusterToRemvoe.i; ii <= clusterToRemvoe.k; ii++)
-								for (size_t jj = clusterToRemvoe.j; jj <= clusterToRemvoe.l; jj++)
+							for (size_t ii = clusterToRemove.i; ii <= clusterToRemove.k; ii++)
+								for (size_t jj = clusterToRemove.j; jj <= clusterToRemove.l; jj++)
 									copy[ii][jj] = 0;
 
-							returnValue += clusterToRemvoe.value;
-							found.push_back(clusterToRemvoe);
+							returnValue += clusterToRemove.value;
+							found.push_back(clusterToRemove);
 						}
 					}
 
@@ -382,32 +391,35 @@ int main()
 	{
 		for (size_t j = 0; j < M; j++)
 		{
-			matrix[i][j] = 0;
+			matrix[i][j] = 1;
+			if (i == 0)
+				matrix[i][j] = 0;
 		}
 	}
+	matrix[4][3] = 0;
 	std::cout << std::endl;
-	matrix[0][0] = 1;
-	matrix[0][1] = 1;
-	matrix[0][3] = 1;
-	matrix[0][4] = 1;
-	matrix[0][5] = 1;
-	matrix[1][0] = 1;
-	matrix[1][1] = 1;
-	matrix[1][2] = 1;
-	matrix[1][4] = 1;
-	matrix[1][5] = 1;
-	matrix[1][6] = 1;
-	matrix[2][0] = 1;
-	matrix[2][1] = 1;
-	matrix[2][2] = 1;
-	matrix[2][3] = 1;
-	matrix[2][5] = 1;
-	matrix[2][6] = 1;
-	matrix[3][1] = 1;
-	matrix[3][2] = 1;
-	matrix[3][3] = 1;
-	matrix[4][2] = 1;
-	matrix[4][3] = 1;
+	//matrix[0][0] = 1;
+	//matrix[0][1] = 1;
+	//matrix[0][3] = 1;
+	//matrix[0][4] = 1;
+	//matrix[0][5] = 1;
+	//matrix[1][0] = 1;
+	//matrix[1][1] = 1;
+	//matrix[1][2] = 1;
+	//matrix[1][4] = 1;
+	//matrix[1][5] = 1;
+	//matrix[1][6] = 1;
+	//matrix[2][0] = 1;
+	//matrix[2][1] = 1;
+	//matrix[2][2] = 1;
+	//matrix[2][3] = 1;
+	//matrix[2][5] = 1;
+	//matrix[2][6] = 1;
+	//matrix[3][1] = 1;
+	//matrix[3][2] = 1;
+	//matrix[3][3] = 1;
+	//matrix[4][2] = 1;
+	//matrix[4][3] = 1;
 
 	PrintMatrix(matrix);
 	std::vector<Cluster> clusters_found;
