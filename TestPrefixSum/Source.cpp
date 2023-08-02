@@ -5,6 +5,7 @@
 #include <map>
 #include <functional>
 #include <vector>
+#include <fstream>
 #include <chrono>
 #include <unordered_set>
 
@@ -278,10 +279,18 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 	{
 		if (clusters.contains(it->first))
 		{
-			const auto cluster = clusters[it->first];
+			auto cluster = clusters[it->first];
 			if (cluster.size() == 1)
 			{
 				const auto& clusterUnique = cluster.front();
+				bool okay = true;
+				for (size_t i = clusterUnique.i; i <= clusterUnique.k; i++)
+					for (size_t j = clusterUnique.j; j <= clusterUnique.l; j++)
+						okay = okay && copy[i][j];
+
+				if (!okay)
+					continue;
+
 				for (size_t i = clusterUnique.i; i <= clusterUnique.k; i++)
 					for (size_t j = clusterUnique.j; j <= clusterUnique.l; j++)
 						copy[i][j] = 0;
@@ -292,11 +301,36 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 			else if (!cluster.empty())
 			{
 				std::unordered_set<Cluster, Hasher> overlapping_clusters;
-				const auto& cluster_vec = cluster;
+				auto& cluster_vec = cluster;
+
+				std::unordered_set<size_t> to_remove_index;
+				for (size_t index = 0; index < cluster_vec.size(); ++index)
+				{
+					bool okay = true;
+					auto vec = cluster_vec[index];
+					for (size_t i = vec.i; i <= vec.k && okay; i++)
+						for (size_t j = vec.j; j <= vec.l && okay; j++)
+							okay = okay && copy[i][j];
+
+					if (!okay)
+						to_remove_index.insert(index);
+
+				}
+
+				std::vector<Cluster> newOnes;
+				for (size_t i = 0; i < cluster_vec.size(); i++)
+				{
+					if (!to_remove_index.contains(i))
+						newOnes.push_back(cluster_vec[i]);
+				}
+
+				cluster_vec = std::vector(newOnes);
+
 				for (size_t i = 0; i < cluster_vec.size(); i++)
 				{
 					for (size_t j = i; j < cluster_vec.size(); j++)
 					{
+
 						if (cluster_vec.at(i).AreClusterOverlaps(cluster_vec.at(j)))
 						{
 							overlapping_clusters.insert(cluster_vec.at(i));
@@ -386,18 +420,100 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 
 int main()
 {
-	MATRIX matrix;
-	for (size_t i = 0; i < N; i++)
+	std::ifstream file("Tests.txt");
+	struct TestValues
 	{
-		for (size_t j = 0; j < M; j++)
+		MATRIX matrix;
+		int value;
+	};
+
+
+	std::vector<TestValues> test_values;
+	if (file.is_open())
+	{
+		std::string line;
+		std::vector<std::string> lines;
+
+		while (std::getline(file, line))
 		{
-			matrix[i][j] = 1;
-			if (i == 0)
-				matrix[i][j] = 0;
+			lines.push_back(line);
+			std::vector<std::vector<int>> matrix;
+			if (lines.size() == N + 1)
+			{
+				for (int i = 0; i < N; i++)
+				{
+					std::vector<int> row(M, 0);
+					int elements_put_in_row = 0;
+					std::string specific_row = lines[i];
+					for (int j = 0; j < specific_row.size(); j++)
+					{
+						if (specific_row[j] == '1')
+						{
+							row[elements_put_in_row] = 1;
+							elements_put_in_row++;
+						}
+						else if (specific_row[j] == '0')
+						{
+							row[elements_put_in_row] = 0;
+							elements_put_in_row++;
+						}
+					}
+					matrix.push_back(row);
+				}
+				
+				int value = atoi(lines[5].c_str());
+
+				TestValues test;
+				test.value = value;
+
+				for (int i = 0; i < N; i++)
+				{
+					for (int j = 0; j < M; j++)
+					{
+						test.matrix[i][j] = matrix[i][j];
+					}
+				}
+				test_values.push_back(test);
+				lines.clear();
+			}
+		}
+
+
+		file.close();
+	}
+
+	for (int i = 0; i < test_values.size(); i++)
+	{
+		TestValues test = test_values[i];
+
+		std::vector<Cluster> clusters_found;
+		if (int result = GetBiggestRectangles(test.matrix, clusters_found); test.value == result)
+		{
+			std::cout << "Test is good" << std::endl;
+		}
+		else
+		{
+			std::cout << "Test is not good" << std::endl;
+			std::cout << "Problematic matrix" << std::endl;
+			PrintMatrix(test.matrix);
+			std::cout << "Requested value : " << test.value << std::endl;
+			std::cout << "Result value : " << result << std::endl;
 		}
 	}
-	matrix[4][3] = 0;
-	std::cout << std::endl;
+
+
+	//MATRIX matrix;
+	//for (size_t i = 0; i < N; i++)
+	//{
+	//	for (size_t j = 0; j < M; j++)
+	//	{
+	//		matrix[i][j] = 1;
+	//		if (i == 0)
+	//			matrix[i][j] = 0;
+	//	}
+	//}
+	//matrix[4][3] = 0;
+	//std::cout << std::endl;
 	//matrix[0][0] = 1;
 	//matrix[0][1] = 1;
 	//matrix[0][3] = 1;
@@ -421,18 +537,18 @@ int main()
 	//matrix[4][2] = 1;
 	//matrix[4][3] = 1;
 
-	PrintMatrix(matrix);
-	std::vector<Cluster> clusters_found;
-	auto start = std::chrono::high_resolution_clock::now();
-	std::cout << "Value " << GetBiggestRectangles(matrix, clusters_found) << std::endl;
-	auto end = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double> duration = end - start;
+	//PrintMatrix(matrix);
+	//std::vector<Cluster> clusters_found;
+	//auto start = std::chrono::high_resolution_clock::now();
+	//std::cout << "Value " << GetBiggestRectangles(matrix, clusters_found) << std::endl;
+	//auto end = std::chrono::high_resolution_clock::now();
+	//std::chrono::duration<double> duration = end - start;
 
 
-	std::cout << "Duration needed: " << duration.count() << " seconds" << std::endl;
-	for (const auto& cluster : clusters_found)
-	{
-		std::cout << "Value: " << cluster.value << std::endl;
-		std::cout << cluster << std::endl;
-	}
+	//std::cout << "Duration needed: " << duration.count() << " seconds" << std::endl;
+	//for (const auto& cluster : clusters_found)
+	//{
+	//	std::cout << "Value: " << cluster.value << std::endl;
+	//	std::cout << cluster << std::endl;
+	//}
 }
