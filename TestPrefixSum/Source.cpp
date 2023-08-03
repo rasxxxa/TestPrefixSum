@@ -271,64 +271,68 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 		}
 	}
 
-	std::map<size_t, std::vector<Cluster>, std::greater<>> max_potential_values;
+	std::map<size_t, std::vector<std::vector<Cluster>>, std::greater<>> max_potential_values;
 
 	for (const auto& cluster : clusters)
-		max_potential_values[cluster.first * cluster.second.size()] = cluster.second;
+		max_potential_values[cluster.first * cluster.second.size()].push_back(cluster.second);
 
 	std::map<size_t, std::vector<std::vector<Cluster>>> possible_vectors;
 
-	for (const auto& potential : max_potential_values)
+	for (const auto& specific_val : max_potential_values)
 	{
-		std::unordered_set<Cluster, Hasher> overlapping_clusters;
-		for (size_t i = 0; i < potential.second.size(); i++)
+		for (const auto& potential : specific_val.second)
 		{
-			for (size_t j = i + 1; j < potential.second.size(); j++)
+			std::unordered_set<Cluster, Hasher> overlapping_clusters;
+			for (size_t i = 0; i < potential.size(); i++)
 			{
+				for (size_t j = i + 1; j < potential.size(); j++)
+				{
 
-				if (potential.second.at(i).AreClusterOverlaps(potential.second.at(j)))
-				{
-					overlapping_clusters.insert(potential.second.at(i));
-					overlapping_clusters.insert(potential.second.at(j));
-				}
-			}
-		}
-		if (overlapping_clusters.empty())
-		{
-			for (const auto& cluster : potential.second)
-			{
-				found.push_back(cluster);
-				for (size_t i = cluster.i; i <= cluster.k; i++)
-				{
-					for (size_t j = cluster.j; j <= cluster.l; j++)
+					if (potential.at(i).AreClusterOverlaps(potential.at(j)))
 					{
-						copy[i][j] = 0;
+						overlapping_clusters.insert(potential.at(i));
+						overlapping_clusters.insert(potential.at(j));
 					}
 				}
 			}
-
-			return potential.first + GetBiggestRectangles(copy, found);
-		}
-		else
-		{
-			size_t max_length = 0;
-			std::vector<std::vector<Cluster>> nonOverlappingCombinations;
-			std::vector<Cluster> currentCombination;
-			generateNonOverlappingCombinations(nonOverlappingCombinations, potential.second, currentCombination, 0, max_length);
-
-			std::vector<std::vector<Cluster>> max_values;
-			for (const auto& potential_non_overlaping : nonOverlappingCombinations)
+			if (overlapping_clusters.empty())
 			{
-				if (potential_non_overlaping.size() == max_length)
-					max_values.push_back(potential_non_overlaping);
-			}
+				for (const auto& cluster : potential)
+				{
+					found.push_back(cluster);
+					for (size_t i = cluster.i; i <= cluster.k; i++)
+					{
+						for (size_t j = cluster.j; j <= cluster.l; j++)
+						{
+							copy[i][j] = 0;
+						}
+					}
+				}
 
-			if (!max_values.empty())
+				return specific_val.first + GetBiggestRectangles(copy, found);
+			}
+			else
 			{
-				possible_vectors[max_length * (potential.first / potential.second.size())] = max_values;
-			}
+				size_t max_length = 0;
+				std::vector<std::vector<Cluster>> nonOverlappingCombinations;
+				std::vector<Cluster> currentCombination;
+				generateNonOverlappingCombinations(nonOverlappingCombinations, potential, currentCombination, 0, max_length);
 
+				std::vector<std::vector<Cluster>> max_values;
+				for (const auto& potential_non_overlaping : nonOverlappingCombinations)
+				{
+					if (potential_non_overlaping.size() == max_length)
+						max_values.push_back(potential_non_overlaping);
+				}
+
+				if (!max_values.empty())
+				{
+					possible_vectors[max_length * (specific_val.first / potential.size())] = max_values;
+				}
+
+			}
 		}
+		
 	}
 
 	for (const auto& pVec : possible_vectors)
@@ -387,7 +391,7 @@ int main()
 	struct TestValues
 	{
 		MATRIX matrix;
-		int value;
+		size_t value;
 	};
 
 
@@ -424,7 +428,7 @@ int main()
 					matrix.push_back(row);
 				}
 				
-				int value = atoi(lines[5].c_str());
+				size_t value = atol(lines[5].c_str());
 
 				TestValues test;
 				test.value = value;
@@ -452,10 +456,15 @@ int main()
 	for (const auto& test : test_values)
 	{
 		std::vector<Cluster> clusters_found;
-		PrintMatrix(test.matrix);
-		std::cout << GetBiggestRectangles(test.matrix, clusters_found) << std::endl;
-		for (const auto& cluster : clusters_found)
-			std::cout << cluster << std::endl;
+		
+		if (auto result = GetBiggestRectangles(test.matrix, clusters_found); test.value != result)
+		{
+			std::cout << "Wrong results" << std::endl;
+			PrintMatrix(test.matrix);
+			std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
+			for (const auto& cluster : clusters_found)
+				std::cout << cluster << std::endl;
+		}
 	}
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> duration = end - start;
