@@ -280,6 +280,7 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 
 	for (const auto& specific_val : max_potential_values)
 	{
+		bool shouldBreak = false;
 		for (const auto& potential : specific_val.second)
 		{
 			std::unordered_set<Cluster, Hasher> overlapping_clusters;
@@ -452,20 +453,22 @@ int main()
 	auto start = std::chrono::high_resolution_clock::now();
 	
 	std::cout << "Begin test" << std::endl;
-
+	size_t failed = 0;
 	for (const auto& test : test_values)
 	{
 		std::vector<Cluster> clusters_found;
 		
 		if (auto result = GetBiggestRectangles(test.matrix, clusters_found); test.value != result)
 		{
-			std::cout << "Wrong results" << std::endl;
+		/*	std::cout << "Wrong results" << std::endl;
 			PrintMatrix(test.matrix);
 			std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
 			for (const auto& cluster : clusters_found)
-				std::cout << cluster << std::endl;
+				std::cout << cluster << std::endl;*/
+			failed++;
 		}
 	}
+	std::cout << "Failed for " << failed << std::endl; 
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> duration = end - start;
 
