@@ -8,6 +8,7 @@
 #include <fstream>
 #include <chrono>
 #include <unordered_set>
+#include <deque>
 
 constexpr size_t M = 7;
 constexpr size_t N = 5;
@@ -182,6 +183,61 @@ void PrintMatrix(const MATRIX& matrix)
 	}
 }
 
+struct PairHasher
+{
+	constexpr size_t operator()(const std::pair<size_t, size_t>& c) const
+	{
+		return c.first * 100 + c.second * 10;
+	}
+};
+
+
+std::vector<std::unordered_set<std::pair<size_t, size_t>, PairHasher>> GetSegments(const MATRIX& matrix)
+{
+	std::vector<std::unordered_set<std::pair<size_t, size_t>, PairHasher>> segments;
+
+	std::unordered_set<std::pair<size_t, size_t>, PairHasher> segment;
+	std::unordered_set<std::pair<size_t, size_t>, PairHasher> found;
+	std::deque<std::pair<size_t, size_t>> nodes;
+	
+	for (size_t i = 0; i < N; i++)
+	{
+		for (size_t j = 0; j < M; j++)
+		{
+			segment.clear();
+			if (matrix[i][j] != 0 && !found.contains(std::make_pair(i, j)))
+			{
+				nodes.emplace_back(i, j);
+				while (!nodes.empty())
+				{
+					auto node = nodes.front();
+					if (node.first == 0 && node.second == 2)
+					{
+						int x = 0;
+						x++;
+					}
+					nodes.pop_front();
+					found.insert(node);
+					segment.insert(std::make_pair(node.first, node.second));
+					if (node.first + 1 < N && matrix[node.first + 1][node.second] == 1 && !found.contains(std::make_pair(node.first + 1, node.second)))
+						nodes.emplace_back(node.first + 1, node.second);
+					if (node.second + 1 < M && matrix[node.first][node.second + 1] == 1 && !found.contains(std::make_pair(node.first, node.second + 1)))
+						nodes.emplace_back(node.first, node.second + 1);
+					if (node.second && node.second - 1 >= 0 && matrix[node.first][node.second - 1] == 1 && !found.contains(std::make_pair(node.first, node.second - 1)))
+						nodes.emplace_back(node.first, node.second - 1);
+					if (node.first && node.first - 1 >= 0 && matrix[node.first - 1][node.second] == 1 && !found.contains(std::make_pair(node.first - 1, node.second)))
+						nodes.emplace_back(node.first - 1, node.second);
+				}
+			}
+			if (!segment.empty())
+				segments.push_back(segment);
+		}
+	}
+
+	return segments;
+};
+
+
 bool IsNonOverlapping(const std::vector<Cluster>& rectangles)
 {
 	if (rectangles.empty())
@@ -265,7 +321,10 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 					if (clusters.contains(element.first))
 						clusters[element.first].push_back(Cluster(i, j, i + rect.m_N - 1, j + rect.m_M - 1, element.first));
 					else
-						clusters[element.first] = { Cluster(i, j, i + rect.m_N - 1, j + rect.m_M - 1, element.first) };
+					{
+						clusters[element.first] = {};
+						clusters[element.first].push_back(Cluster(i, j, i + rect.m_N - 1, j + rect.m_M - 1, element.first));
+					}
 				}
 			}
 		}
@@ -276,8 +335,8 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 	for (const auto& cluster : clusters)
 		max_potential_values[cluster.first * cluster.second.size()].push_back(cluster.second);
 
-	std::map<size_t, std::vector<std::vector<Cluster>>> possible_vectors;
-
+	std::map<size_t, std::vector<std::vector<Cluster>>, std::greater<>> possible_vectors;
+	std::vector<Cluster> additionalClusters;
 	for (const auto& specific_val : max_potential_values)
 	{
 		bool shouldBreak = false;
@@ -298,6 +357,18 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 			}
 			if (overlapping_clusters.empty())
 			{
+				if (!possible_vectors.empty() && possible_vectors.begin()->first > specific_val.first)
+				{
+					if (true)
+					{
+						// throw implementation if specific plus possible is greater than max
+					}
+					else
+					{
+						shouldBreak = true;
+						break;
+					}
+				}
 				for (const auto& cluster : potential)
 				{
 					found.push_back(cluster);
@@ -333,7 +404,10 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 
 			}
 		}
-		
+		if (shouldBreak)
+		{
+			break;
+		}
 	}
 
 	for (const auto& pVec : possible_vectors)
@@ -345,8 +419,8 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 			auto _copy = MATRIX(copy);
 			for (const auto& clusterUnique : combinations)
 			{
-				for (size_t i = clusterUnique.i; i < clusterUnique.k; i++)
-					for (size_t j = clusterUnique.j; j < clusterUnique.l; j++)
+				for (size_t i = clusterUnique.i; i <= clusterUnique.k; i++)
+					for (size_t j = clusterUnique.j; j <= clusterUnique.l; j++)
 						_copy[i][j] = 0;
 			}
 
@@ -355,7 +429,7 @@ size_t GetBiggestRectangles(const MATRIX& matrix, std::vector<Cluster>& found)
 
 			if (result > max_value_found)
 			{
-				result = max_value_found;
+				max_value_found = result;
 				toReturn = std::vector(combinations);
 			}
 
@@ -456,16 +530,29 @@ int main()
 	size_t failed = 0;
 	for (const auto& test : test_values)
 	{
+		auto segments = GetSegments(test.matrix);
+
+		for (const auto& s : segments)
+		{
+			std::cout << "segment" << std::endl;
+			for (const auto& v : s)
+				std::cout << "[" << v.first << "," << v.second << "]" << std::endl;
+		}
+
 		std::vector<Cluster> clusters_found;
-		
 		if (auto result = GetBiggestRectangles(test.matrix, clusters_found); test.value != result)
 		{
-		/*	std::cout << "Wrong results" << std::endl;
+			std::cout << "Wrong results" << std::endl;
 			PrintMatrix(test.matrix);
 			std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
 			for (const auto& cluster : clusters_found)
-				std::cout << cluster << std::endl;*/
-			failed++;
+				std::cout << cluster << std::endl;
+			clusters_found.clear();
+			GetBiggestRectangles(test.matrix, clusters_found);
+		}
+		else
+		{
+			//std::cout << "Test passed " << std::endl;
 		}
 	}
 	std::cout << "Failed for " << failed << std::endl; 
