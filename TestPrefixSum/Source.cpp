@@ -533,6 +533,9 @@ size_t GetBiggestRectanglesWithSegments(const MATRIX& matrix, std::vector<Cluste
 		{
 			if (try_val.second.size() == 1)
 			{
+				if (!biggest_combinations.empty() && (*biggest_combinations.begin()).first > try_val.first)
+					break;
+
 				const auto& clus = try_val.second.front();
 				found.push_back(try_val.second.front());
 				MATRIX _matrix;
@@ -550,12 +553,14 @@ size_t GetBiggestRectanglesWithSegments(const MATRIX& matrix, std::vector<Cluste
 				}
 
 				result += (try_val.first + GetBiggestRectanglesWithSegments(_matrix, found));
+				biggest_combinations.clear();
 				break;
 			}
 			else
 			{
+				if (!biggest_combinations.empty() && (*biggest_combinations.begin()).first > try_val.first)
+					break;
 				const auto& elements_to_pick = try_val.second;
-
 				size_t max_length = 0;
 				std::vector<std::vector<Cluster>> nonOverlappingCombinations;
 				std::vector<Cluster> currentCombination;
@@ -604,7 +609,7 @@ size_t GetBiggestRectanglesWithSegments(const MATRIX& matrix, std::vector<Cluste
 				std::vector<Cluster> foundsss;
 				auto resultss = GetBiggestRectanglesWithSegments(_mmatrix, foundsss);
 
-				if (resultss > max)
+				if (int(resultss) > max)
 				{
 					max = resultss;
 					biggest = std::vector(specific);
@@ -615,20 +620,32 @@ size_t GetBiggestRectanglesWithSegments(const MATRIX& matrix, std::vector<Cluste
 			if (!biggest.empty())
 			{
 				MATRIX _mmatrix;
-				for (const auto& spec : biggest)
+				
+				for (size_t i = 0; i < N; i++)
 				{
-					for (size_t i = 0; i < N; i++)
+					for (size_t j = 0; j < M; j++)
 					{
-						for (size_t j = 0; j < M; j++)
+						if (segments[clust].contains(std::make_pair(i, j)))
+							_mmatrix[i][j] = 1;
+						else
+							_mmatrix[i][j] = 0;
+					}
+				}
+
+				for (size_t i = 0; i < N; i++)
+				{
+					for (size_t j = 0; j < M; j++)
+					{
+						for (const auto& spec : biggest)
 						{
 							if (i >= spec.i && i <= spec.k && j >= spec.j && j <= spec.l)
 								_mmatrix[i][j] = 0;
-							else if (segments[clust].contains(std::make_pair(i, j)))
-								_mmatrix[i][j] = 1;
-							else
-								_mmatrix[i][j] = 0;
 						}
 					}
+				}
+
+				for (const auto& spec : biggest)
+				{	
 					found.push_back(spec);
 				}
 				result += (values_to_check.first + GetBiggestRectanglesWithSegments(_mmatrix, found));
@@ -719,13 +736,13 @@ int main()
 		if (auto result = GetBiggestRectanglesWithSegments(test.matrix, clusters_found); result != test.value)
 		{
 			failed++;
-			std::cout << "Wrong results" << std::endl;
+			//std::cout << "Wrong results" << std::endl;
 			//PrintMatrix(test.matrix);
-			std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
-			for (const auto& cluster : clusters_found)
-				std::cout << cluster << std::endl;
+			//std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
+			/*for (const auto& cluster : clusters_found)
+				std::cout << cluster << std::endl;*/
 			clusters_found.clear();
-
+		//	auto cc = GetBiggestRectanglesWithSegments(test.matrix, clusters_found);
 
 		}
 		else
