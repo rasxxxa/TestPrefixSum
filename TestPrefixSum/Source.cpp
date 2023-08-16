@@ -527,6 +527,17 @@ size_t GetBiggestRectanglesWithSegments(const MATRIX& matrix, std::vector<Cluste
 			}
 		}
 
+		if (!max_possible_values.empty() && (*max_possible_values.begin()).first == 0)
+		{
+
+			const auto& clusters = (*max_possible_values.begin()).second;
+
+			for (const auto& clusss : clusters)
+				found.push_back(clusss);
+
+			continue;
+		}
+
 		std::map < size_t, std::vector<std::vector<Cluster>>, std::greater<>> biggest_combinations;
 
 		for (const auto& try_val : max_possible_values)
@@ -736,13 +747,13 @@ int main()
 		if (auto result = GetBiggestRectanglesWithSegments(test.matrix, clusters_found); result != test.value)
 		{
 			failed++;
-			//std::cout << "Wrong results" << std::endl;
-			//PrintMatrix(test.matrix);
-			//std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
-			/*for (const auto& cluster : clusters_found)
-				std::cout << cluster << std::endl;*/
+			std::cout << "Wrong results" << std::endl;
+			PrintMatrix(test.matrix);
+			std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
+			for (const auto& cluster : clusters_found)
+				std::cout << cluster << std::endl;
 			clusters_found.clear();
-		//	auto cc = GetBiggestRectanglesWithSegments(test.matrix, clusters_found);
+			auto cc = GetBiggestRectanglesWithSegments(test.matrix, clusters_found);
 
 		}
 		else
