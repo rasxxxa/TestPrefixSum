@@ -511,8 +511,10 @@ size_t GetBiggestRectanglesWithSegments(const MATRIX& matrix, std::vector<Cluste
 
 	size_t result = 0;
 
+	int clust = -1;
 	for (const auto& values : found_values)
 	{
+		clust++;
 		std::map<size_t, std::vector<Cluster>, std::greater<>> max_possible_values;
 		for (const auto& max : values)
 		{
@@ -539,6 +541,8 @@ size_t GetBiggestRectanglesWithSegments(const MATRIX& matrix, std::vector<Cluste
 					for (size_t j = 0; j < M; j++)
 					{
 						if (i >= clus.i && i <= clus.k && j >= clus.j && j <= clus.l)
+							_matrix[i][j] = 0;
+						else if (segments[clust].contains(std::make_pair(i, j)))
 							_matrix[i][j] = 1;
 						else
 							_matrix[i][j] = 0;
@@ -574,7 +578,62 @@ size_t GetBiggestRectanglesWithSegments(const MATRIX& matrix, std::vector<Cluste
 		if (!biggest_combinations.empty())
 		{
 			const auto& values_to_check = *biggest_combinations.begin();
-			// todo
+			
+			int max = -1;
+			std::vector<Cluster> biggest;
+
+			for (const auto& specific : values_to_check.second)
+			{
+				MATRIX _mmatrix;
+				for (const auto& spec : specific)
+				{
+					for (size_t i = 0; i < N; i++)
+					{
+						for (size_t j = 0; j < M; j++)
+						{
+							if (i >= spec.i && i <= spec.k && j >= spec.j && j <= spec.l)
+								_mmatrix[i][j] = 0;
+							else if (segments[clust].contains(std::make_pair(i, j)))
+								_mmatrix[i][j] = 1;
+							else
+								_mmatrix[i][j] = 0;
+						}
+					}
+				}
+
+				std::vector<Cluster> foundsss;
+				auto resultss = GetBiggestRectanglesWithSegments(_mmatrix, foundsss);
+
+				if (resultss > max)
+				{
+					max = resultss;
+					biggest = std::vector(specific);
+				}
+
+			}
+
+			if (!biggest.empty())
+			{
+				MATRIX _mmatrix;
+				for (const auto& spec : biggest)
+				{
+					for (size_t i = 0; i < N; i++)
+					{
+						for (size_t j = 0; j < M; j++)
+						{
+							if (i >= spec.i && i <= spec.k && j >= spec.j && j <= spec.l)
+								_mmatrix[i][j] = 0;
+							else if (segments[clust].contains(std::make_pair(i, j)))
+								_mmatrix[i][j] = 1;
+							else
+								_mmatrix[i][j] = 0;
+						}
+					}
+					found.push_back(spec);
+				}
+				result += (values_to_check.first + GetBiggestRectanglesWithSegments(_mmatrix, found));
+			}
+
 		}
 
 	}
@@ -652,37 +711,31 @@ int main()
 	
 	std::cout << "Begin test" << std::endl;
 	size_t failed = 0;
+	size_t success = 0;
+	auto end = std::chrono::high_resolution_clock::now();
 	for (const auto& test : test_values)
 	{
-		//auto segments = GetSegments(test.matrix);
-
-		//for (const auto& s : segments)
-		//{
-		//	std::cout << "segment" << std::endl;
-		//	for (const auto& v : s)
-		//		std::cout << "[" << v.first << "," << v.second << "]" << std::endl;
-		//}
-
-		PrintMatrix(test.matrix);
 		std::vector<Cluster> clusters_found;
-		auto result = GetBiggestRectanglesWithSegments(test.matrix, clusters_found);
-		std::cout << "Wrong results" << std::endl;
-		//PrintMatrix(test.matrix);
-		std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
-		for (const auto& cluster : clusters_found)
-			std::cout << cluster << std::endl;
-		clusters_found.clear();
-		//{
-		//	
-		//	//GetBiggestRectangles(test.matrix, clusters_found);
-		//}
-		//else
-		//{
-		//	//std::cout << "Test passed " << std::endl;
-		//}
+		if (auto result = GetBiggestRectanglesWithSegments(test.matrix, clusters_found); result != test.value)
+		{
+			failed++;
+			std::cout << "Wrong results" << std::endl;
+			//PrintMatrix(test.matrix);
+			std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
+			for (const auto& cluster : clusters_found)
+				std::cout << cluster << std::endl;
+			clusters_found.clear();
+
+
+		}
+		else
+		{
+			success++;
+		}
 	}
+
 	std::cout << "Failed for " << failed << std::endl; 
-	auto end = std::chrono::high_resolution_clock::now();
+	std::cout << "Successfull" << success << std::endl;
 	std::chrono::duration<double> duration = end - start;
 
 	std::cout << "Time passed for " << test_values.size() << " tests : " << duration.count() << " seconds" << std::endl;
