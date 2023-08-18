@@ -4,6 +4,7 @@
 #include <fstream>
 #include <map>
 #include <functional>
+#include <filesystem>
 #include <vector>
 #include <set>
 #include <fstream>
@@ -672,11 +673,11 @@ size_t GetBiggestRectanglesWithSegments(const MATRIX& matrix, std::vector<Cluste
 
 size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 {
-	for (const auto& element : elements)
+	for (const auto& element : rectangles)
 	{
 		std::vector<Cluster> clusters;
 
-		auto rect = element.second;
+		const auto& rect = element;
 		for (size_t i = 0; i < N; i++)
 		{
 			for (size_t j = 0; j < M; j++)
@@ -706,7 +707,7 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 
 				if (IsOkey)
 				{
-					clusters.push_back(Cluster(i, j, i + rect.m_N - 1, j + rect.m_M - 1, element.first));
+					clusters.push_back(Cluster(i, j, i + rect.m_N - 1, j + rect.m_M - 1, element.m_value));
 				}
 			}
 		}
@@ -722,7 +723,7 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 					matrix[i][j] = 0;
 				}
 			}
-			return element.first + GetBiggestRectanglesEasy(matrix, found);
+			return element.m_value + GetBiggestRectanglesEasy(matrix, found);
 		}
 		else
 		{
@@ -777,13 +778,33 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 					}
 					found.push_back(small_rect);
 				}
-				return element.first * strongest.size() + GetBiggestRectanglesEasy(matrix, found);
+				return element.m_value * strongest.size() + GetBiggestRectanglesEasy(matrix, found);
 			}
 		}
 	}
 	return 0;
 }
 
+
+void CreateMatrix(long code, MATRIX& x)
+{
+	int shift = 0;
+	for (int j = 0; j < 7; j++)
+	{
+		for (int i = 0; i < 5; i++)
+		{
+			if ((i > 0 && i < 4) && (j == 2 || j == 4))
+			{
+				x[i][j] = 1;
+			}
+			else
+			{
+				x[i][j] = ((code >> shift) & 1);
+				shift++;
+			}
+		}
+	}
+}
 
 
 int main()
@@ -793,95 +814,93 @@ int main()
 	{
 		MATRIX matrix;
 		size_t value;
+		size_t code;
 	};
-
-
-	std::vector<TestValues> test_values;
-	if (file.is_open())
+	unsigned long long tests = 0;
+	double time = 0;
+	for (auto path : std::filesystem::directory_iterator(R"(C:\Users\radoi\Desktop\wintables_corrected)"))
 	{
-		std::string line;
-		std::vector<std::string> lines;
-
-		while (std::getline(file, line))
+		auto fileName = path.path().filename().string();
+		auto winType = fileName.find('_');
+		std::string copy = std::string(fileName);
+		copy.erase(0, winType + 1);
+		std::string number = "";
+		auto c = 0;
+		while (std::isdigit(copy[c]) && c < copy.size())
 		{
-			lines.push_back(line);
-			std::vector<std::vector<int>> matrix;
-			if (lines.size() == N + 1)
+			number.push_back(copy[c]);
+			c++;
+		}
+
+		std::ifstream open(path.path().string().c_str());
+		std::vector<long> values;
+		std::vector<TestValues> test_values;
+		if (open.is_open())
+		{
+			std::string line;
+			while (std::getline(open, line))
 			{
-				for (int i = 0; i < N; i++)
+				std::string number;
+				int last = line.size() - 1;
+				while (last >= 0 && std::isdigit(line[last]))
 				{
-					std::vector<int> row(M, 0);
-					int elements_put_in_row = 0;
-					std::string specific_row = lines[i];
-					for (int j = 0; j < specific_row.size(); j++)
-					{
-						if (specific_row[j] == '1')
-						{
-							row[elements_put_in_row] = 1;
-							elements_put_in_row++;
-						}
-						else if (specific_row[j] == '0')
-						{
-							row[elements_put_in_row] = 0;
-							elements_put_in_row++;
-						}
-					}
-					matrix.push_back(row);
+					number.push_back(line[last]);
+					last--;
 				}
-				
-				size_t value = atol(lines[5].c_str());
 
-				TestValues test;
-				test.value = value;
+				std::reverse(number.begin(), number.end());
+				values.push_back(atol(number.c_str()));
+			}
+			open.close();
+		}
+		for (const auto& val : values)
+		{
+			TestValues val_;
+			MATRIX m;
+			CreateMatrix(val, m);
+			val_.code = val;
+			val_.matrix = MATRIX(m);
+			val_.value = atol(number.c_str());
+			test_values.push_back(val_);
+		}
+		//std::cout << "Begin test for : " << atol(number.c_str()) << std::endl;
 
-				for (int i = 0; i < N; i++)
-				{
-					for (int j = 0; j < M; j++)
-					{
-						test.matrix[i][j] = matrix[i][j];
-					}
-				}
-				test_values.push_back(test);
-				lines.clear();
+		auto start = std::chrono::high_resolution_clock::now();
+
+		size_t failed = 0;
+		size_t success = 0;
+
+		for (auto& test : test_values)
+		{
+			tests++;
+			MATRIX copy = MATRIX(test.matrix);
+			std::vector<Cluster> clusters_found;
+			if (auto result = GetBiggestRectanglesEasy(copy, clusters_found); result != test.value)
+			{
+				failed++;
+				std::cout << "Wrong results" << std::endl;
+				PrintMatrix(test.matrix);
+				std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
+				for (const auto& cluster : clusters_found)
+					std::cout << cluster << std::endl;
+				clusters_found.clear();
+				copy = MATRIX(test.matrix);
+				auto cc = GetBiggestRectanglesEasy(copy, clusters_found);
+
+			}
+			else
+			{
+				success++;
 			}
 		}
-
-
-		file.close();
+		auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> duration = (end - start);
+		time += duration.count();
+		//std::cout << "Number of lines" << values.size() << std::endl;
+		//std::cout << "End test for : " << atol(number.c_str()) << std::endl;
 	}
-	std::cout << "Begin test" << std::endl;
 
-	auto start = std::chrono::high_resolution_clock::now();
-	
-	size_t failed = 0;
-	size_t success = 0;
+	std::cout << "Passed tests: " << tests << std::endl;
+	std::cout << "Time: " << time << std::endl;
 
-	for (auto& test : test_values)
-	{
-		MATRIX copy = MATRIX(test.matrix);
-		std::vector<Cluster> clusters_found;
-		if (auto result = GetBiggestRectanglesEasy(copy, clusters_found); result != test.value)
-		{
-			failed++;
-			//std::cout << "Wrong results" << std::endl;
-			//PrintMatrix(test.matrix);
-			//std::cout << "Expected: " << test.value << " , got: " << result << std::endl;
-			//for (const auto& cluster : clusters_found)
-			//	std::cout << cluster << std::endl;
-			//clusters_found.clear();
-			//copy = MATRIX(test.matrix);
-			//auto cc = GetBiggestRectanglesEasy(copy, clusters_found);
-
-		}
-		else
-		{
-			success++;
-		}
-	}
-	auto end = std::chrono::high_resolution_clock::now();
-	std::cout << "Failed for " << failed << std::endl; 
-	std::cout << "Successfull" << success << std::endl;
-	std::chrono::duration<double> duration = end - start;
-
-	std::cout << "Time passed for " << test_values.size() << " tests : " << duration.count() << " seconds" << std::endl;
 }
