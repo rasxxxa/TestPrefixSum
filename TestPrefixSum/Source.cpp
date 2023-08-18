@@ -60,13 +60,6 @@ struct Cluster
 		const bool y_overlap = j <= cluster.l && l >= cluster.j;
 		return x_overlap && y_overlap;
 	}
-
-	bool AreFullyOverlapped(const Cluster& cluster) const
-	{
-		const bool x_overlap = i <= cluster.i && k >= cluster.k;
-		const bool y_overlap = j <= cluster.j && l >= cluster.l;
-		return x_overlap && y_overlap;
-	}
 };
 
 constexpr std::array<Rectangle, NUMBER_OF_RECTANGLES> rectangles
@@ -168,53 +161,43 @@ void GenerateNonOverlappingCombinations(std::vector<std::vector<Cluster>>& resul
 		return;
 	}
 
-	// Include the current rectangle and move to the next one
 	currentCombination.push_back(rectangles[startIndex]);
 	GenerateNonOverlappingCombinations(result, rectangles, currentCombination, startIndex + 1, max_value);
-	currentCombination.pop_back(); // Backtrack
+	currentCombination.pop_back();
 
-	// Skip the current rectangle and move to the next one
 	GenerateNonOverlappingCombinations(result, rectangles, currentCombination, startIndex + 1, max_value);
 }
 
 
 size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 {
-	for (const auto& element : rectangles)
+	for (const auto& rect : rectangles)
 	{
 		std::vector<Cluster> clusters;
-
-		const auto& rect = element;
 		for (size_t i = 0; i < N; i++)
 		{
 			for (size_t j = 0; j < M; j++)
 			{
+				
 				size_t max_i = N - i;
 				size_t max_j = M - j;
 
-				if (rect.m_area > max_i * max_j)
-					continue;
-
-				if (max_i < rect.m_N)
-					continue;
-
-				if (max_j < rect.m_M)
-					continue;
-
-
-				bool IsOkey = true;
-
-				for (size_t k = i; k < i + rect.m_N && IsOkey; k++)
+				if (!((rect.m_area > max_i * max_j) || (max_i < rect.m_N) || (max_j < rect.m_M)))
 				{
-					for (size_t l = j; l < j + rect.m_M && IsOkey; l++)
+					bool IsOkey = true;
+
+					for (size_t k = i; k < i + rect.m_N && IsOkey; k++)
 					{
-						IsOkey = IsOkey && (matrix[k][l] == 1);
+						for (size_t l = j; l < j + rect.m_M && IsOkey; l++)
+						{
+							IsOkey = IsOkey && (matrix[k][l] == 1);
+						}
 					}
-				}
 
-				if (IsOkey)
-				{
-					clusters.push_back(Cluster(i, j, i + rect.m_N - 1, j + rect.m_M - 1, element.m_value));
+					if (IsOkey)
+					{
+						clusters.emplace_back(i, j, i + rect.m_N - 1, j + rect.m_M - 1, rect.m_value);
+					}
 				}
 			}
 		}
@@ -230,7 +213,7 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 					matrix[i][j] = 0;
 				}
 			}
-			return element.m_value + GetBiggestRectanglesEasy(matrix, found);
+			return rect.m_value + GetBiggestRectanglesEasy(matrix, found);
 		}
 		else
 		{
@@ -240,11 +223,11 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 			std::vector<Cluster> currentCombination;
 			GenerateNonOverlappingCombinations(nonOverlappingCombinations, elements_to_pick, currentCombination, 0, max_length);
 
-			std::vector<std::vector<Cluster>> max_values;
-			for (const auto& potential_non_overlaping : nonOverlappingCombinations)
+			std::vector<std::vector<Cluster>*> max_values;
+			for (auto& potential_non_overlaping : nonOverlappingCombinations)
 			{
 				if (potential_non_overlaping.size() == max_length)
-					max_values.push_back(potential_non_overlaping);
+					max_values.push_back(&potential_non_overlaping);
 			}
 
 			int max = -1;
@@ -254,7 +237,7 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 				MATRIX copy = MATRIX(matrix);
 				std::vector<Cluster> foundCopy;
 
-				for (const auto& small_rect : values)
+				for (const auto& small_rect : *values)
 				{
 					for (size_t i = small_rect.i; i <= small_rect.k; i++)
 					{
@@ -268,7 +251,7 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 				if (result_temp > max)
 				{
 					max = result_temp;
-					strongest = (&values);
+					strongest = (values);
 				}
 			}
 
@@ -285,7 +268,7 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 					}
 					found.push_back(small_rect);
 				}
-				return element.m_value * (*strongest).size() + GetBiggestRectanglesEasy(matrix, found);
+				return rect.m_value * (*strongest).size() + GetBiggestRectanglesEasy(matrix, found);
 			}
 		}
 	}
