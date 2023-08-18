@@ -248,8 +248,8 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 			}
 
 			int max = -1;
-			std::vector<Cluster> strongest;
-			for (const auto& values : max_values)
+			std::vector<Cluster>* strongest = nullptr;
+			for (auto& values : max_values)
 			{
 				MATRIX copy = MATRIX(matrix);
 				std::vector<Cluster> foundCopy;
@@ -268,13 +268,13 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 				if (result_temp > max)
 				{
 					max = result_temp;
-					strongest = std::vector(values);
+					strongest = (&values);
 				}
 			}
 
-			if (!strongest.empty())
+			if (strongest && !(*strongest).empty())
 			{
-				for (const auto& small_rect : strongest)
+				for (const auto& small_rect : (*strongest))
 				{
 					for (size_t i = small_rect.i; i <= small_rect.k; i++)
 					{
@@ -285,7 +285,7 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 					}
 					found.push_back(small_rect);
 				}
-				return element.m_value * strongest.size() + GetBiggestRectanglesEasy(matrix, found);
+				return element.m_value * (*strongest).size() + GetBiggestRectanglesEasy(matrix, found);
 			}
 		}
 	}
@@ -316,7 +316,7 @@ void CreateMatrix(long code, MATRIX& x)
 
 int main()
 {
-	std::ifstream file("Tests.txt");
+	////std::ifstream file("Tests.txt");
 	struct TestValues
 	{
 		MATRIX matrix;
@@ -325,7 +325,7 @@ int main()
 	};
 	unsigned long long tests = 0;
 	double time = 0;
-	for (auto path : std::filesystem::directory_iterator(R"(C:\Users\radoi\Desktop\wintables_corrected)"))
+	for (auto path : std::filesystem::directory_iterator(R"(C:\wintables_corrected)"))
 	{
 		auto fileName = path.path().filename().string();
 		auto winType = fileName.find('_');
@@ -398,9 +398,9 @@ int main()
 		auto end = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> duration = (end - start);
 		time += duration.count();
+		break;
 	}
 
 	std::cout << "Passed tests: " << tests << std::endl;
 	std::cout << "Time: " << time << std::endl;
-
 }
