@@ -34,6 +34,17 @@ struct Rectangle
 		of << rectangle.m_N << " " << rectangle.m_M << " " << rectangle.m_area << " " << rectangle.m_value << std::endl;
 		return of;
 	}
+
+	constexpr bool operator == (const Rectangle& rect) const
+	{
+		return m_M == rect.m_M && m_N == rect.m_N;
+	}
+
+	bool FullyContainsRectangle(const Rectangle& rect) const
+	{
+		return m_M >= rect.m_M && m_N >= rect.m_N;
+	}
+
 };
 
 struct Cluster
@@ -297,7 +308,113 @@ void CreateMatrix(long code, MATRIX& x)
 }
 
 
-int main()
+//consteval std::array<Rectangle, NUMBER_OF_RECTANGLES> RectangleToCheck(const Rectangle& minimal, size_t& returned)
+//{
+//	constexpr std::array<Rectangle, NUMBER_OF_RECTANGLES> to_check(rectangles);
+//	auto first = std::ranges::find(rectangles, minimal);
+//	returned = first->m_area;
+//	return to_check;
+//}
+
+std::vector<Rectangle> RectanglesToCheck(const Rectangle& minimal)
+{
+	std::vector<Rectangle> to_check;
+	std::vector<Rectangle> candidates;
+	auto first = std::ranges::find(rectangles, minimal);
+	if (first != rectangles.end())
+	{
+		for (auto it = rectangles.begin(); it != first; it++)
+			candidates.push_back(*it);
+
+		to_check.push_back(minimal);
+		while (!candidates.empty())
+		{
+			auto rect_minimal = to_check.back();
+			
+				auto [first, last] = std::ranges::remove_if(candidates, [rect = rect_minimal](const Rectangle& rectangle) {
+				
+				return rectangle.FullyContainsRectangle(rect);
+				
+				});
+
+			candidates.erase(first, last);
+			if (!candidates.empty())
+			{
+				to_check.push_back(candidates.back());
+				candidates.pop_back();
+			}
+		}
+
+	}
+	return to_check;
+}
+
+std::vector<std::pair<size_t, size_t>> PossibleFields(MATRIX& matrix)
+{
+	constexpr Rectangle smallest(4, 2, 1000);
+	std::vector<std::pair<size_t, size_t>> teaser_fields;
+	auto wins = RectanglesToCheck(smallest);
+	static constexpr auto CheckSubField = [](const MATRIX& m, const Rectangle& rect, size_t left, size_t right, size_t top, size_t bottom) 
+	{
+		for (int i = top; i < bottom; i++)
+		{
+			for (int j = left; j < right; j++)
+			{
+				if (m[i][j] == 0)
+					continue;
+
+				size_t max_i = N - i;
+				size_t max_j = M - j;
+
+				if (!((rect.m_area > max_i * max_j) || (max_i < rect.m_N) || (max_j < rect.m_M)))
+				{
+					bool found = true;
+
+					for (int k = i; k < i + rect.m_N && found; k++)
+					{
+						for (int l = j; l < j + rect.m_M && found; l++)
+							found &= (m[k][l] == 1);
+					}
+					if (found)
+						return true;
+
+				}
+			}
+		}
+
+		return false;
+	};
+
+	for (size_t i = 0; i < N; i++)
+	{
+		for (size_t j = 0; j < M; j++)
+		{
+			if (matrix[i][j])
+				continue;
+
+			matrix[i][j] = 1;
+			for (const auto& rect : wins)
+			{
+				int top = std::max(0, int(i - rect.m_N));
+				int bottom = std::min(int(N), int(i + rect.m_N));
+				int left = std::max(0, int(j - rect.m_M));
+				int right = std::min(int(M), int(j + rect.m_M));
+				if (CheckSubField(matrix, rect, left, right, top, bottom))
+				{
+					teaser_fields.push_back({ i, j });
+					break;
+				}
+			}
+
+			matrix[i][j] = 0;
+		}
+	}
+
+	return teaser_fields;
+}
+
+
+void DoTests()
 {
 	////std::ifstream file("Tests.txt");
 	struct TestValues
@@ -362,6 +479,7 @@ int main()
 		{
 			tests++;
 			std::vector<Cluster> clusters_found;
+			MATRIX copy(test.matrix);
 			if (auto result = GetBiggestRectanglesEasy(test.matrix, clusters_found); result != test.value)
 			{
 				failed++;
@@ -371,10 +489,18 @@ int main()
 				for (const auto& cluster : clusters_found)
 					std::cout << cluster << std::endl;
 				clusters_found.clear();
-
 			}
 			else
 			{
+				PrintMatrix(copy);
+				auto PossibleDots = PossibleFields(copy);
+
+				
+				for (const auto& dot : PossibleDots)
+				{
+					std::cout << "[" << dot.first << "," << dot.second << "]" << std::endl;
+				}
+
 				success++;
 			}
 		}
@@ -386,4 +512,11 @@ int main()
 
 	std::cout << "Passed tests: " << tests << std::endl;
 	std::cout << "Time: " << time << std::endl;
+}
+
+
+
+int main()
+{
+	DoTests();
 }
