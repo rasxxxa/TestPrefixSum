@@ -424,6 +424,7 @@ void DoTests()
 		size_t value;
 		size_t code;
 	};
+	double fullTime = 0.0;
 	unsigned long long tests = 0;
 	double maxTime = -100.0;
 	long valueMax = 0;
@@ -477,6 +478,7 @@ void DoTests()
 		size_t failed = 0;
 		size_t success = 0;
 
+		auto fullStart = std::chrono::high_resolution_clock::now();
 		for (auto& test : test_values)
 		{
 			tests++;
@@ -495,22 +497,27 @@ void DoTests()
 			}
 			else
 			{
-				PossibleFields(copy);
+				auto res = PossibleFields(copy);
 				success++;
 			}
 			auto end = std::chrono::high_resolution_clock::now();
-			std::chrono::duration<double> duration = (end - start);
-			if (auto dur = duration.count(); dur > maxTime)
+			std::chrono::duration<double> duration1 = (end - start);
+			if (auto dur = duration1.count(); dur > maxTime)
 			{
 				maxTime = dur;
 				valueMax = test.code;
 			}
 		}
+		auto fullEnd = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> duration = (fullEnd - fullStart);
+		fullTime += duration.count();
+		break;
 	}
 
 	std::cout << "Passed tests: " << tests << std::endl;
 	std::cout << "max time passed: " << maxTime << std::endl;
 	std::cout << "Most complex combination " << valueMax << std::endl;
+	std::cout << "Full time: " << fullTime << std::endl;
 }
 
 
