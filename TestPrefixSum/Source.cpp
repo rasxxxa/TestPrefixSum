@@ -503,11 +503,9 @@ void DoTests()
 			if (auto dur = duration.count(); dur > maxTime)
 			{
 				maxTime = dur;
-				valueMax = test.value;
+				valueMax = test.code;
 			}
 		}
-
-		break;
 	}
 
 	std::cout << "Passed tests: " << tests << std::endl;
