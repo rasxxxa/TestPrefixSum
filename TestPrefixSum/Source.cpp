@@ -395,13 +395,14 @@ std::vector<std::pair<size_t, size_t>> PossibleFields(MATRIX& matrix)
 			matrix[i][j] = 1;
 			for (const auto& rect : wins)
 			{
-				int top = std::max(0, int(i - rect.m_N));
+				int top = std::max(0, int(i - rect.m_N + 1));
 				int bottom = std::min(int(N), int(i + rect.m_N));
-				int left = std::max(0, int(j - rect.m_M));
+				int left = std::max(0, int(j - rect.m_M + 1));
 				int right = std::min(int(M), int(j + rect.m_M));
 				if (CheckSubField(matrix, rect, left, right, top, bottom))
 				{
 					teaser_fields.push_back({ i, j });
+					CheckSubField(matrix, rect, left, right, top, bottom);
 					break;
 				}
 			}
