@@ -353,7 +353,7 @@ std::vector<std::pair<size_t, size_t>> PossibleFields(MATRIX& matrix)
 {
 	constexpr Rectangle smallest(4, 2, 1000);
 	std::vector<std::pair<size_t, size_t>> teaser_fields;
-	auto wins = RectanglesToCheck(smallest);
+	static auto wins = RectanglesToCheck(smallest);
 	static constexpr auto CheckSubField = [](const MATRIX& m, const Rectangle& rect, size_t left, size_t right, size_t top, size_t bottom) 
 	{
 		for (int i = top; i < bottom; i++)
@@ -373,7 +373,7 @@ std::vector<std::pair<size_t, size_t>> PossibleFields(MATRIX& matrix)
 					for (int k = i; k < i + rect.m_N && found; k++)
 					{
 						for (int l = j; l < j + rect.m_M && found; l++)
-							found &= (m[k][l] == 1);
+							found = found && (m[k][l] == 1);
 					}
 					if (found)
 						return true;
@@ -396,9 +396,9 @@ std::vector<std::pair<size_t, size_t>> PossibleFields(MATRIX& matrix)
 			for (const auto& rect : wins)
 			{
 				int top = std::max(0, int(i - rect.m_N + 1));
-				int bottom = std::min(int(N), int(i + rect.m_N));
+				int bottom = std::min(int(N), int(i + rect.m_N - 1));
 				int left = std::max(0, int(j - rect.m_M + 1));
-				int right = std::min(int(M), int(j + rect.m_M));
+				int right = std::min(int(M), int(j + rect.m_M - 1));
 				if (CheckSubField(matrix, rect, left, right, top, bottom))
 				{
 					teaser_fields.push_back({ i, j });
@@ -425,7 +425,8 @@ void DoTests()
 		size_t code;
 	};
 	unsigned long long tests = 0;
-	double time = 0;
+	double maxTime = -100.0;
+	long valueMax = 0;
 	for (auto path : std::filesystem::directory_iterator(R"(C:\wintables_corrected)"))
 	{
 		auto fileName = path.path().filename().string();
@@ -471,7 +472,7 @@ void DoTests()
 			val_.value = atol(number.c_str());
 			test_values.push_back(val_);
 		}
-		auto start = std::chrono::high_resolution_clock::now();
+		
 
 		size_t failed = 0;
 		size_t success = 0;
@@ -481,6 +482,7 @@ void DoTests()
 			tests++;
 			std::vector<Cluster> clusters_found;
 			MATRIX copy(test.matrix);
+			auto start = std::chrono::high_resolution_clock::now();
 			if (auto result = GetBiggestRectanglesEasy(test.matrix, clusters_found); result != test.value)
 			{
 				failed++;
@@ -493,26 +495,24 @@ void DoTests()
 			}
 			else
 			{
-				PrintMatrix(copy);
-				auto PossibleDots = PossibleFields(copy);
-
-				
-				for (const auto& dot : PossibleDots)
-				{
-					std::cout << "[" << dot.first << "," << dot.second << "]" << std::endl;
-				}
-
+				PossibleFields(copy);
 				success++;
 			}
+			auto end = std::chrono::high_resolution_clock::now();
+			std::chrono::duration<double> duration = (end - start);
+			if (auto dur = duration.count(); dur > maxTime)
+			{
+				maxTime = dur;
+				valueMax = test.value;
+			}
 		}
-		auto end = std::chrono::high_resolution_clock::now();
-		std::chrono::duration<double> duration = (end - start);
-		time += duration.count();
+
 		break;
 	}
 
 	std::cout << "Passed tests: " << tests << std::endl;
-	std::cout << "Time: " << time << std::endl;
+	std::cout << "max time passed: " << maxTime << std::endl;
+	std::cout << "Most complex combination " << valueMax << std::endl;
 }
 
 
