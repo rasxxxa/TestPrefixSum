@@ -511,7 +511,6 @@ void DoTests()
 		auto fullEnd = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> duration = (fullEnd - fullStart);
 		fullTime += duration.count();
-		break;
 	}
 
 	std::cout << "Passed tests: " << tests << std::endl;
