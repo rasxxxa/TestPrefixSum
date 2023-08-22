@@ -180,16 +180,27 @@ void GenerateNonOverlappingCombinations(std::vector<std::vector<Cluster>>& resul
 }
 
 
-size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
+size_t GetBiggestRectanglesEasy(size_t initialDepth, MATRIX& matrix, std::vector<Cluster>& found)
 {
-	for (const auto& rect : rectangles)
+	for (size_t depth = initialDepth; depth < rectangles.size(); depth++)
 	{
+		const auto& rect = rectangles[depth];
+		if (rect.m_area == 1)
+		{
+			for (size_t row = 0; row < N; row++)
+				for (size_t column = 0; column < M; column++)
+					if (matrix[row][column])
+						found.emplace_back(row, column, row, column, rect.m_value);
+
+			return 0;
+		}
+
 		std::vector<Cluster> clusters;
 		for (size_t i = 0; i < N; i++)
 		{
 			for (size_t j = 0; j < M; j++)
 			{
-				
+
 				size_t max_i = N - i;
 				size_t max_j = M - j;
 
@@ -224,7 +235,7 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 					matrix[i][j] = 0;
 				}
 			}
-			return rect.m_value + GetBiggestRectanglesEasy(matrix, found);
+			return rect.m_value + GetBiggestRectanglesEasy(depth + 1, matrix, found);
 		}
 		else
 		{
@@ -258,7 +269,7 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 						}
 					}
 				}
-				int result_temp = GetBiggestRectanglesEasy(copy, foundCopy);
+				int result_temp = GetBiggestRectanglesEasy(depth + 1, copy, foundCopy);
 				if (result_temp > max)
 				{
 					max = result_temp;
@@ -279,9 +290,15 @@ size_t GetBiggestRectanglesEasy(MATRIX& matrix, std::vector<Cluster>& found)
 					}
 					found.push_back(small_rect);
 				}
-				return rect.m_value * (*strongest).size() + GetBiggestRectanglesEasy(matrix, found);
+				return rect.m_value * (*strongest).size() + GetBiggestRectanglesEasy(depth + 1, matrix, found);
 			}
 		}
+	}
+
+
+	for (const auto& rect : rectangles)
+	{
+		
 	}
 	return 0;
 }
@@ -485,7 +502,7 @@ void DoTests()
 			std::vector<Cluster> clusters_found;
 			MATRIX copy(test.matrix);
 			auto start = std::chrono::high_resolution_clock::now();
-			if (auto result = GetBiggestRectanglesEasy(test.matrix, clusters_found); result != test.value)
+			if (auto result = GetBiggestRectanglesEasy(0, test.matrix, clusters_found); result != test.value)
 			{
 				failed++;
 				std::cout << "Wrong results" << std::endl;
@@ -523,5 +540,13 @@ void DoTests()
 
 int main()
 {
-	DoTests();
+	//DoTests();
+	MATRIX m;
+	CreateMatrix(254180095, m);
+	std::vector<Cluster> clusters_found;
+	auto start = std::chrono::high_resolution_clock::now();
+	GetBiggestRectanglesEasy(0, m, clusters_found);
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> duration1 = (end - start);
+	std::cout << duration1.count() << std::endl;
 }
