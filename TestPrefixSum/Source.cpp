@@ -261,7 +261,7 @@ size_t GetBiggestRectanglesEasy(size_t initialDepth, MATRIX& matrix, std::vector
 
 		int max = -1;
 		std::vector<Cluster>* strongest = nullptr;
-		std::vector<Cluster>* foundInner;
+		std::vector<Cluster>* foundInner = nullptr;
 		for (auto& values : max_values)
 		{
 			MATRIX copy = MATRIX(matrix);
