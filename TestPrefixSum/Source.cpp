@@ -277,12 +277,8 @@ size_t GetBiggestRectanglesEasy(size_t initialDepth, MATRIX& matrix, std::vector
 
 		if (strongest && !(*strongest).empty())
 		{
-			for (const auto& small_rect : (*strongest))
-				found.push_back(small_rect);
-
-			for (const auto& rectr : foundInner)
-				found.push_back(rectr);
-
+			found.insert(found.end(), (*strongest).begin(), (*strongest).end());
+			found.insert(found.end(), foundInner.begin(), foundInner.end());
 			return rect.m_value * (*strongest).size() + max;
 		}
 	}
