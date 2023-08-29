@@ -179,126 +179,118 @@ void GenerateNonOverlappingCombinations(std::vector<std::vector<Cluster>>& resul
 	GenerateNonOverlappingCombinations(result, rectangles, currentCombination, startIndex + 1, max_value);
 }
 
-
-size_t GetBiggestRectanglesEasy(size_t initialDepth, MATRIX& matrix, std::vector<Cluster>& found)
+void GetClusterForSpecificRect(std::vector<Cluster>& clusters, const MATRIX& matrix, const Rectangle& rect)
 {
-	for (size_t depth = initialDepth; depth < rectangles.size(); depth++)
+	for (size_t i = 0; i < N; i++)
 	{
-		const auto& rect = rectangles[depth];
-		if (rect.m_area == 1)
+		for (size_t j = 0; j < M; j++)
 		{
-			for (size_t row = 0; row < N; row++)
-				for (size_t column = 0; column < M; column++)
-					if (matrix[row][column])
-						found.emplace_back(row, column, row, column, rect.m_value);
 
-			return 0;
-		}
+			size_t max_i = N - i;
+			size_t max_j = M - j;
 
-		std::vector<Cluster> clusters;
-		for (size_t i = 0; i < N; i++)
-		{
-			for (size_t j = 0; j < M; j++)
+			if (!((rect.m_area > max_i * max_j) || (max_i < rect.m_N) || (max_j < rect.m_M)))
 			{
+				bool IsOkey = true;
 
-				size_t max_i = N - i;
-				size_t max_j = M - j;
-
-				if (!((rect.m_area > max_i * max_j) || (max_i < rect.m_N) || (max_j < rect.m_M)))
+				for (size_t k = i; k < i + rect.m_N && IsOkey; k++)
 				{
-					bool IsOkey = true;
-
-					for (size_t k = i; k < i + rect.m_N && IsOkey; k++)
+					for (size_t l = j; l < j + rect.m_M && IsOkey; l++)
 					{
-						for (size_t l = j; l < j + rect.m_M && IsOkey; l++)
-						{
-							IsOkey = IsOkey && (matrix[k][l] == 1);
-						}
-					}
-
-					if (IsOkey)
-					{
-						clusters.emplace_back(i, j, i + rect.m_N - 1, j + rect.m_M - 1, rect.m_value);
+						IsOkey = IsOkey && (matrix[k][l] == 1);
 					}
 				}
-			}
-		}
 
-		if (clusters.size() == 1)
-		{
-			const auto& cluster = clusters.front();
-			found.push_back(cluster);
-			for (size_t i = cluster.i; i <= cluster.k; i++)
-			{
-				for (size_t j = cluster.j; j <= cluster.l; j++)
+				if (IsOkey)
 				{
-					matrix[i][j] = 0;
+					clusters.emplace_back(i, j, i + rect.m_N - 1, j + rect.m_M - 1, rect.m_value);
 				}
-			}
-			return rect.m_value + GetBiggestRectanglesEasy(depth + 1, matrix, found);
-		}
-		else
-		{
-			const auto& elements_to_pick = clusters;
-			size_t max_length = 0;
-			std::vector<std::vector<Cluster>> nonOverlappingCombinations;
-			std::vector<Cluster> currentCombination;
-			GenerateNonOverlappingCombinations(nonOverlappingCombinations, elements_to_pick, currentCombination, 0, max_length);
-
-			std::vector<std::vector<Cluster>*> max_values;
-			for (auto& potential_non_overlaping : nonOverlappingCombinations)
-			{
-				if (potential_non_overlaping.size() == max_length)
-					max_values.push_back(&potential_non_overlaping);
-			}
-
-			int max = -1;
-			std::vector<Cluster>* strongest = nullptr;
-			for (auto& values : max_values)
-			{
-				MATRIX copy = MATRIX(matrix);
-				std::vector<Cluster> foundCopy;
-
-				for (const auto& small_rect : *values)
-				{
-					for (size_t i = small_rect.i; i <= small_rect.k; i++)
-					{
-						for (size_t j = small_rect.j; j <= small_rect.l; j++)
-						{
-							copy[i][j] = 0;
-						}
-					}
-				}
-				int result_temp = GetBiggestRectanglesEasy(depth + 1, copy, foundCopy);
-				if (result_temp > max)
-				{
-					max = result_temp;
-					strongest = (values);
-				}
-			}
-
-			if (strongest && !(*strongest).empty())
-			{
-				for (const auto& small_rect : (*strongest))
-				{
-					for (size_t i = small_rect.i; i <= small_rect.k; i++)
-					{
-						for (size_t j = small_rect.j; j <= small_rect.l; j++)
-						{
-							matrix[i][j] = 0;
-						}
-					}
-					found.push_back(small_rect);
-				}
-				return rect.m_value * (*strongest).size() + GetBiggestRectanglesEasy(depth + 1, matrix, found);
 			}
 		}
 	}
+}
 
+void InitializeMatrixWithSpecificRect(MATRIX& matrix, const Cluster& cluster, size_t value)
+{
+	for (size_t i = cluster.i; i <= cluster.k; i++)
+		for (size_t j = cluster.j; j <= cluster.l; j++)
+			matrix[i][j] = value;
+}
 
-	for (const auto& rect : rectangles)
+size_t GetBiggestRectanglesEasy(size_t initialDepth, MATRIX& matrix, std::vector<Cluster>& found)
+{
+	const auto& rect = rectangles[initialDepth];
+	if (rect.m_area == 1)
 	{
-		
+		for (size_t row = 0; row < N; row++)
+			for (size_t column = 0; column < M; column++)
+				if (matrix[row][column])
+					found.emplace_back(row, column, row, column, rect.m_value);
+
+		return 0;
+	}
+
+	std::vector<Cluster> clusters;
+	GetClusterForSpecificRect(clusters, matrix, rect);
+
+	if (clusters.empty())
+	{
+		return GetBiggestRectanglesEasy(initialDepth + 1, matrix, found);
+	}
+	else if (clusters.size() == 1)
+	{
+		const auto& cluster = clusters.front();
+		found.push_back(cluster);
+		InitializeMatrixWithSpecificRect(matrix, cluster, 0);
+		return rect.m_value + GetBiggestRectanglesEasy(initialDepth + 1, matrix, found);
+	}
+	else
+	{
+		const auto& elements_to_pick = clusters;
+		size_t max_length = 0;
+		std::vector<std::vector<Cluster>> nonOverlappingCombinations;
+		std::vector<Cluster> currentCombination;
+		GenerateNonOverlappingCombinations(nonOverlappingCombinations, elements_to_pick, currentCombination, 0, max_length);
+
+		std::vector<std::vector<Cluster>*> max_values;
+		for (auto& potential_non_overlaping : nonOverlappingCombinations)
+		{
+			if (potential_non_overlaping.size() == max_length)
+				max_values.push_back(&potential_non_overlaping);
+		}
+
+		int max = -1;
+		std::vector<Cluster>* strongest = nullptr;
+		std::vector<Cluster> foundInner;
+		for (auto& values : max_values)
+		{
+			MATRIX copy = MATRIX(matrix);
+			std::vector<Cluster> foundCopy;
+
+			for (const auto& small_rect : *values)
+				InitializeMatrixWithSpecificRect(copy, small_rect, 0);
+
+			int result_temp = GetBiggestRectanglesEasy(initialDepth + 1, copy, foundCopy);
+			if (result_temp > max)
+			{
+				max = result_temp;
+				strongest = (values);
+				foundInner = foundCopy;
+			}
+		}
+
+		if (strongest && !(*strongest).empty())
+		{
+			for (const auto& small_rect : (*strongest))
+			{
+				found.push_back(small_rect);
+			}
+
+			for (const auto& rectr : foundInner)
+				found.push_back(rectr);
+
+			return rect.m_value * (*strongest).size() + max;
+		}
 	}
 	return 0;
 }
@@ -445,7 +437,7 @@ void DoTests()
 	unsigned long long tests = 0;
 	double maxTime = -100.0;
 	long valueMax = 0;
-	for (auto path : std::filesystem::directory_iterator(R"(C:\wintables_corrected)"))
+	for (auto path : std::filesystem::directory_iterator(R"(C:\Users\radoi\Desktop\wintables_corrected)"))
 	{
 		auto fileName = path.path().filename().string();
 		auto winType = fileName.find('_');
@@ -528,6 +520,7 @@ void DoTests()
 		auto fullEnd = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> duration = (fullEnd - fullStart);
 		fullTime += duration.count();
+		break;
 	}
 
 	std::cout << "Passed tests: " << tests << std::endl;
@@ -540,13 +533,13 @@ void DoTests()
 
 int main()
 {
-	//DoTests();
-	MATRIX m;
-	CreateMatrix(254180095, m);
-	std::vector<Cluster> clusters_found;
-	auto start = std::chrono::high_resolution_clock::now();
-	GetBiggestRectanglesEasy(0, m, clusters_found);
-	auto end = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double> duration1 = (end - start);
-	std::cout << duration1.count() << std::endl;
+	DoTests();
+	//MATRIX m;
+	//CreateMatrix(254180095, m);
+	//std::vector<Cluster> clusters_found;
+	//auto start = std::chrono::high_resolution_clock::now();
+	//GetBiggestRectanglesEasy(0, m, clusters_found);
+	//auto end = std::chrono::high_resolution_clock::now();
+	//std::chrono::duration<double> duration1 = (end - start);
+	//std::cout << duration1.count() << std::endl;
 }
