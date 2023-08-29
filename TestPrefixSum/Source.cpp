@@ -261,7 +261,7 @@ size_t GetBiggestRectanglesEasy(size_t initialDepth, MATRIX& matrix, std::vector
 
 		int max = -1;
 		std::vector<Cluster>* strongest = nullptr;
-		std::vector<Cluster> foundInner;
+		std::vector<Cluster>* foundInner;
 		for (auto& values : max_values)
 		{
 			MATRIX copy = MATRIX(matrix);
@@ -275,7 +275,7 @@ size_t GetBiggestRectanglesEasy(size_t initialDepth, MATRIX& matrix, std::vector
 			{
 				max = result_temp;
 				strongest = (values);
-				foundInner = foundCopy;
+				foundInner = &foundCopy;
 			}
 		}
 
@@ -286,7 +286,7 @@ size_t GetBiggestRectanglesEasy(size_t initialDepth, MATRIX& matrix, std::vector
 				found.push_back(small_rect);
 			}
 
-			for (const auto& rectr : foundInner)
+			for (const auto& rectr : *foundInner)
 				found.push_back(rectr);
 
 			return rect.m_value * (*strongest).size() + max;
@@ -533,13 +533,13 @@ void DoTests()
 
 int main()
 {
-	DoTests();
-	//MATRIX m;
-	//CreateMatrix(254180095, m);
-	//std::vector<Cluster> clusters_found;
-	//auto start = std::chrono::high_resolution_clock::now();
-	//GetBiggestRectanglesEasy(0, m, clusters_found);
-	//auto end = std::chrono::high_resolution_clock::now();
-	//std::chrono::duration<double> duration1 = (end - start);
-	//std::cout << duration1.count() << std::endl;
+	//DoTests();
+	MATRIX m;
+	CreateMatrix(254180095, m);
+	std::vector<Cluster> clusters_found;
+	auto start = std::chrono::high_resolution_clock::now();
+	GetBiggestRectanglesEasy(0, m, clusters_found);
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> duration1 = (end - start);
+	std::cout << duration1.count() << std::endl;
 }
